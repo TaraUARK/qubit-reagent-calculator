@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qubit Reagent Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Layout: lab worksheet — a prep-recipe card stacked above an editable sample
+     results table, both pinned to a narrow protocol-sheet column */
+  :root {
+    --bg: #F2F5F3;
+    --surface: #FFFFFF;
+    --surface-2: #E8EDEA;
+    --border: #D5DCD8;
+    --text: #17211D;
+    --text-muted: #5B6B64;
+    --accent: #0F7A6B;
+    --accent-contrast: #FFFFFF;
+    --warning-bg: #FCF2D6;
+    --warning-text: #7A5B05;
+    --danger: #B3261E;
+    --danger-bg: #FBE9E7;
+    --success: #1E7B45;
+    --font-display: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101613;
+      --surface: #17201C;
+      --surface-2: #1E2A24;
+      --border: #2B3A33;
+      --text: #E7EFEA;
+      --text-muted: #94A69D;
+      --accent: #3FD6BC;
+      --accent-contrast: #08211C;
+      --warning-bg: #362B10;
+      --warning-text: #F0C862;
+      --danger: #FF6B60;
+      --danger-bg: #34201D;
+      --success: #4ADE80;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101613;
+    --surface: #17201C;
+    --surface-2: #1E2A24;
+    --border: #2B3A33;
+    --text: #E7EFEA;
+    --text-muted: #94A69D;
+    --accent: #3FD6BC;
+    --accent-contrast: #08211C;
+    --warning-bg: #362B10;
+    --warning-text: #F0C862;
+    --danger: #FF6B60;
+    --danger-bg: #34201D;
+    --success: #4ADE80;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    padding-inline: 16px;
+    padding-block: 28px 48px;
+    display: flex;
+    justify-content: center;
+  }
+  .page { width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 20px; }
+
+  .header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  header h1 {
+    font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
+    font-weight: 700;
+    margin: 0 0 4px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  header p { margin: 0; color: var(--text-muted); font-size: 0.95rem; max-width: 60ch; }
+  .btn-protocol { flex-shrink: 0; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+  .panel h2 {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  .prep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 560px) { .prep-grid { grid-template-columns: 1fr; } }
+
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { font-size: 0.85rem; font-weight: 500; }
+  .field .hint { font-size: 0.78rem; color: var(--text-muted); }
+  input[type="number"], input[type="text"], select {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 10px;
+    color: var(--text);
+    width: 100%;
+  }
+  input[type="text"] { font-family: var(--font-display); }
+  input:focus-visible, select:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  input.invalid { border-color: var(--danger); background: var(--danger-bg); }
+
+  .btn {
+    font-family: var(--font-display);
+    font-size: 0.88rem;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn-primary { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
+  .btn-primary:hover { filter: brightness(1.06); }
+  .btn-icon { padding: 6px 9px; font-size: 0.85rem; line-height: 1; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .units-field { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; margin-left: auto; }
+  .units-field label { font-weight: 500; white-space: nowrap; }
+  .units-field select { width: auto; min-width: 90px; }
+  #globalUnits.unset { border-color: var(--warning-text); background: var(--warning-bg); color: var(--warning-text); }
+
+  .recipe { display: flex; flex-direction: column; gap: 10px; }
+  .recipe-row {
+    display: flex; justify-content: space-between; gap: 12px;
+    font-size: 0.88rem; color: var(--text-muted);
+  }
+  .recipe-row.total {
+    color: var(--text); font-weight: 600; font-size: 0.95rem;
+    padding-top: 8px; border-top: 1px dashed var(--border);
+  }
+  .recipe-row .val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text); }
+  .recipe-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+  .recipe-card {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .recipe-card .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .recipe-card .amount { font-family: var(--font-mono); font-size: 1.4rem; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .recipe-note { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+  .warning {
+    background: var(--warning-bg); color: var(--warning-text);
+    border-radius: 8px; padding: 8px 12px; font-size: 0.82rem;
+  }
+
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; background: var(--surface); }
+  thead th {
+    text-align: left; font-size: 0.85rem; letter-spacing: 0.02em;
+    color: var(--text); font-weight: 700; padding: 10px; background: var(--surface-2);
+    border-bottom: 2px solid var(--border); white-space: nowrap;
+  }
+  tbody td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr.standard-row td { background: var(--surface-2); }
+  td.num, .computed { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .computed { color: var(--text); font-size: 0.9rem; white-space: nowrap; }
+  .computed.strong { font-weight: 600; color: var(--accent); }
+  .computed.muted { color: var(--text-muted); }
+  .fixed-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-muted); font-size: 0.9rem; white-space: nowrap; }
+  .fixed-name { font-weight: 500; color: var(--text-muted); }
+  td input, td select { min-width: 76px; }
+  td.name-cell input { min-width: 140px; }
+  .remove-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+    border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-size: 0.85rem;
+  }
+  .remove-btn:hover { color: var(--danger); border-color: var(--danger); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(8px);
+    background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 8px;
+    font-size: 0.85rem; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+    max-width: min(90vw, 420px); text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0; background: rgba(10, 16, 14, 0.55);
+    align-items: flex-start; justify-content: center;
+    padding: 40px 16px; overflow-y: auto; z-index: 100;
+  }
+  .modal-overlay:not([hidden]) { display: flex; }
+  .modal-card {
+    background: #FFFFFF; color: #17211D; border-radius: 12px;
+    padding: 32px; width: 100%; max-width: 720px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  }
+  .modal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 4px; }
+  .modal-header h2 { margin: 0; font-size: 1.3rem; font-weight: 700; }
+  .protocol-meta { color: #5B6B64; font-size: 0.85rem; margin: 0 0 18px; }
+  .protocol-list { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 16px; }
+  .protocol-list li { font-size: 0.95rem; line-height: 1.55; }
+  .protocol-list li strong { font-weight: 700; }
+  .protocol-highlight { background: #E4F3EF; padding: 1px 5px; border-radius: 4px; font-weight: 700; }
+  .protocol-final { background: #FCF2D6; padding: 10px 12px; border-radius: 8px; margin: -2px -12px -2px -12px; }
+  .protocol-table-wrap { margin-top: 10px; overflow-x: auto; }
+  .protocol-table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  .protocol-table th {
+    text-align: left; padding: 6px 10px; border-bottom: 2px solid #17211D; font-weight: 700;
+  }
+  .protocol-table td { padding: 10px; border-bottom: 1px solid #D5DCD8; }
+  .protocol-table td.blank-cell { border-bottom: 1px solid #999999; }
+  .protocol-blanks { margin: 8px 0 0; font-size: 0.95rem; line-height: 2.2; }
+  .protocol-blanks .fill { display: inline-block; min-width: 110px; border-bottom: 1px solid #999999; }
+  .print-hint { color: #5B6B64; font-size: 0.8rem; margin: 14px 0 0; }
+
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+  @media print {
+    body > *:not(.modal-overlay) { display: none !important; }
+    .modal-overlay { position: static; background: none; padding: 0; }
+    .modal-card { box-shadow: none; max-width: 100%; }
+    .modal-header button, #closeProtocolBtn2, .print-hint { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <div class="header-row">
+      <div>
+        <h1>Qubit Reagent Calculator</h1>
+        <p>Working-solution volumes for any Qubit assay kit, plus back-calculated concentrations from your instrument's raw readout.</p>
+      </div>
+      <button class="btn btn-protocol" id="protocolBtn">Print protocol</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <h2>1 · Prep working solution</h2>
+    <div class="prep-grid">
+      <div>
+        <div class="field">
+          <label for="numSamples">Number of samples</label>
+          <input type="number" id="numSamples" value="8" min="0" max="200" step="1">
+        </div>
+        <div class="field">
+          <label for="sampleVol">Sample volume per assay (µL)</label>
+          <input type="number" id="sampleVol" value="2" min="0.1" max="199.9" step="0.1">
+        </div>
+        <div class="toolbar">
+          <button class="btn btn-primary" id="buildBtn">Build sample table</button>
+        </div>
+        <p class="recipe-note" style="margin-top:12px;">Rebuilds the table below using these two values. Adding rows or editing a sample's own volume afterward updates the recipe automatically — this button won't overwrite edits unless you click it again.</p>
+      </div>
+      <div class="recipe">
+        <div class="recipe-row"><span>Sample tubes</span><span class="val" id="rcSampleTubes">–</span></div>
+        <div class="recipe-row"><span>Standard tubes (fixed, per protocol)</span><span class="val">2 × 190 µL</span></div>
+        <div class="recipe-row"><span>Working solution needed</span><span class="val" id="rcSubtotal">–</span></div>
+        <div class="recipe-row"><span>+ 5% pipetting overage</span><span class="val" id="rcOverage">–</span></div>
+        <div class="recipe-row total"><span>Total working solution to prepare</span><span class="val" id="rcTotal">–</span></div>
+        <div class="recipe-cards">
+          <div class="recipe-card">
+            <div class="label">Qubit reagent</div>
+            <div class="amount" id="rcReagent">– µL</div>
+          </div>
+          <div class="recipe-card">
+            <div class="label">Qubit buffer</div>
+            <div class="amount" id="rcBuffer">– µL</div>
+          </div>
+        </div>
+        <div id="rcWarning" class="warning" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>2 · Samples &amp; results</h2>
+    <div class="toolbar">
+      <button class="btn" id="addRowBtn">+ Add sample</button>
+      <button class="btn" id="csvBtn">Download CSV</button>
+      <button class="btn" id="pngBtn">Copy / save table as image</button>
+      <div class="units-field">
+        <label for="globalUnits">Qubit readout units</label>
+        <select id="globalUnits">
+          <option value="" selected>Select units…</option>
+          <option value="ng/mL">ng/mL</option>
+          <option value="µg/mL">µg/mL</option>
+          <option value="ng/µL">ng/µL</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Sample name</th>
+            <th>Sample vol (µL)</th>
+            <th>Working soln to add (µL)</th>
+            <th>Qubit reading</th>
+            <th>Original conc. (ng/µL)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="recipe-note">Original sample concentration = (Qubit reading converted to ng/µL) × (200 µL ÷ sample volume), using the readout units set above. Editing a row's sample volume also updates the working-solution recipe above. Press Enter in a reading field to jump to the next one.</p>
+  </section>
+
+</div>
+
+<div class="modal-overlay" id="protocolOverlay" hidden>
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>Qubit Assay Protocol</h2>
+      <button class="btn btn-icon" id="closeProtocolBtn" aria-label="Close protocol" style="background:transparent;">✕</button>
+    </div>
+    <div id="protocolBody"></div>
+    <div class="toolbar" style="margin-top:20px;">
+      <button class="btn btn-primary" id="closeProtocolBtn2" style="border-color:#0F7A6B;">Close</button>
+    </div>
+    <p class="print-hint">To print, use your browser's own Print command (Cmd/Ctrl+P) — this page can't open that dialog itself.</p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+(function () {
+  var TOTAL_VOL = 200;
+  var STD_SAMPLE_VOL = 10;
+  var STD_WS = TOTAL_VOL - STD_SAMPLE_VOL; // 190
+  var NUM_STANDARDS = 2;
+  var DILUTION_PARTS = 200; // 1 part reagent : 199 parts buffer
+  var OVERAGE = 1.05;
+
+  var numSamplesInput = document.getElementById('numSamples');
+  var sampleVolInput = document.getElementById('sampleVol');
+  var buildBtn = document.getElementById('buildBtn');
+  var addRowBtn = document.getElementById('addRowBtn');
+  var csvBtn = document.getElementById('csvBtn');
+  var pngBtn = document.getElementById('pngBtn');
+  var globalUnitsSelect = document.getElementById('globalUnits');
+  var tbody = document.getElementById('tbody');
+  var toastEl = document.getElementById('toast');
+  var protocolBtn = document.getElementById('protocolBtn');
+  var protocolOverlay = document.getElementById('protocolOverlay');
+  var protocolBody = document.getElementById('protocolBody');
+  var closeProtocolBtn = document.getElementById('closeProtocolBtn');
+  var closeProtocolBtn2 = document.getElementById('closeProtocolBtn2');
+
+  var standards = [
+    { id: 'std1', name: 'Standard 1', vol: STD_SAMPLE_VOL, reading: '', isStandard: true },
+    { id: 'std2', name: 'Standard 2', vol: STD_SAMPLE_VOL, reading: '', isStandard: true }
+  ];
+  var rows = [];
+  var idCounter = 0;
+  var toastTimer = null;
+
+  function globalUnits() { return globalUnitsSelect.value; }
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 3200);
+  }
+
+  function clamp(n, min, max) { return Math.min(max, Math.max(min, n)); }
+
+  function inClaudeViewer() {
+    return typeof window.claude !== 'undefined' && window.claude && typeof window.claude.use === 'function';
+  }
+
+  function nativeDownload(filename, dataOrBlob, mimeType) {
+    try {
+      var blob = dataOrBlob instanceof Blob ? dataOrBlob : new Blob([dataOrBlob], { type: mimeType || 'application/octet-stream' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function makeRow(name, vol) {
+    idCounter += 1;
+    return { id: idCounter, name: name || '', vol: vol, reading: '' };
+  }
+
+  function validVol(vol) {
+    return isFinite(vol) && vol > 0 && vol < TOTAL_VOL;
+  }
+
+  function readingToNgPerUl(value, units) {
+    if (units === 'ng/mL') return value / 1000;
+    if (units === 'µg/mL') return value; // 1 µg/mL == 1 ng/µL
+    return value; // already ng/µL
+  }
+
+  function calcConcentration(row) {
+    var units = globalUnits();
+    var vol = parseFloat(row.vol);
+    var reading = parseFloat(row.reading);
+    if (!units || !validVol(vol) || !isFinite(reading) || reading < 0) return null;
+    var ngPerUl = readingToNgPerUl(reading, units);
+    return ngPerUl * (TOTAL_VOL / vol);
+  }
+
+  function recalcAllConcentrations() {
+    standards.forEach(updateRowComputed);
+    rows.forEach(updateRowComputed);
+  }
+
+  function buildTable() {
+    var n = clamp(parseInt(numSamplesInput.value, 10) || 0, 0, 200);
+    var v = parseFloat(sampleVolInput.value);
+    if (!validVol(v)) v = 2;
+    rows = [];
+    for (var i = 1; i <= n; i++) rows.push(makeRow('Sample ' + i, v));
+    renderTable();
+    recomputeMasterMix();
+  }
+
+  function focusNextReading(current) {
+    var inputs = Array.prototype.slice.call(document.querySelectorAll('.reading-input'));
+    var idx = inputs.indexOf(current);
+    var next = idx > -1 ? inputs[idx + 1] : null;
+    if (next) { next.focus(); next.select(); } else { current.blur(); }
+  }
+
+  function buildReadingInput(row) {
+    var readInput = document.createElement('input');
+    readInput.type = 'number';
+    readInput.className = 'reading-input';
+    readInput.min = '0';
+    readInput.step = 'any';
+    readInput.placeholder = '0.00';
+    readInput.value = row.reading;
+    readInput.addEventListener('input', function () {
+      row.reading = readInput.value;
+      updateRowComputed(row);
+    });
+    readInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); focusNextReading(readInput); }
+    });
+    return readInput;
+  }
+
+  function renderTable() {
+    tbody.innerHTML = '';
+
+    standards.forEach(function (std) {
+      var tr = document.createElement('tr');
+      tr.className = 'standard-row';
+      tr.dataset.id = std.id;
+
+      var nameTd = document.createElement('td');
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'fixed-name';
+      nameSpan.textContent = std.name;
+      nameTd.appendChild(nameSpan);
+      tr.appendChild(nameTd);
+
+      var volTd = document.createElement('td');
+      var volSpan = document.createElement('span');
+      volSpan.className = 'fixed-value';
+      volSpan.textContent = std.vol.toFixed(1);
+      volTd.appendChild(volSpan);
+      tr.appendChild(volTd);
+
+      var wsTd = document.createElement('td');
+      wsTd.className = 'computed';
+      wsTd.id = 'ws-' + std.id;
+      tr.appendChild(wsTd);
+
+      var readTd = document.createElement('td');
+      readTd.appendChild(buildReadingInput(std));
+      tr.appendChild(readTd);
+
+      var concTd = document.createElement('td');
+      concTd.className = 'computed muted';
+      concTd.id = 'conc-' + std.id;
+      concTd.textContent = 'n/a';
+      tr.appendChild(concTd);
+
+      tr.appendChild(document.createElement('td'));
+
+      tbody.appendChild(tr);
+      updateRowComputed(std);
+    });
+
+    rows.forEach(function (row) {
+      var tr = document.createElement('tr');
+      tr.dataset.id = row.id;
+
+      var nameTd = document.createElement('td');
+      nameTd.className = 'name-cell';
+      var nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.value = row.name;
+      nameInput.addEventListener('input', function () { row.name = nameInput.value; });
+      nameTd.appendChild(nameInput);
+      tr.appendChild(nameTd);
+
+      var volTd = document.createElement('td');
+      var volInput = document.createElement('input');
+      volInput.type = 'number';
+      volInput.min = '0.1';
+      volInput.max = '199.9';
+      volInput.step = '0.1';
+      volInput.value = row.vol;
+      volInput.addEventListener('input', function () {
+        row.vol = parseFloat(volInput.value);
+        volInput.classList.toggle('invalid', !validVol(row.vol));
+        updateRowComputed(row);
+        recomputeMasterMix();
+      });
+      volTd.appendChild(volInput);
+      tr.appendChild(volTd);
+
+      var wsTd = document.createElement('td');
+      wsTd.className = 'computed';
+      wsTd.id = 'ws-' + row.id;
+      tr.appendChild(wsTd);
+
+      var readTd = document.createElement('td');
+      readTd.appendChild(buildReadingInput(row));
+      tr.appendChild(readTd);
+
+      var concTd = document.createElement('td');
+      concTd.className = 'computed strong';
+      concTd.id = 'conc-' + row.id;
+      tr.appendChild(concTd);
+
+      var rmTd = document.createElement('td');
+      var rmBtn = document.createElement('button');
+      rmBtn.className = 'remove-btn';
+      rmBtn.type = 'button';
+      rmBtn.textContent = '✕';
+      rmBtn.setAttribute('aria-label', 'Remove sample');
+      rmBtn.addEventListener('click', function () {
+        rows = rows.filter(function (r) { return r.id !== row.id; });
+        renderTable();
+        recomputeMasterMix();
+      });
+      rmTd.appendChild(rmBtn);
+      tr.appendChild(rmTd);
+
+      tbody.appendChild(tr);
+      updateRowComputed(row);
+    });
+  }
+
+  function updateRowComputed(row) {
+    var wsEl = document.getElementById('ws-' + row.id);
+    var concEl = document.getElementById('conc-' + row.id);
+    if (!wsEl) return;
+    var vol = parseFloat(row.vol);
+    wsEl.textContent = validVol(vol) ? (TOTAL_VOL - vol).toFixed(1) : '—';
+    if (row.isStandard || !concEl) return;
+    var conc = calcConcentration(row);
+    concEl.textContent = conc === null ? '—' : conc.toFixed(1);
+  }
+
+  function getMasterMixValues() {
+    var totalSampleWS = 0;
+    var invalidCount = 0;
+    rows.forEach(function (r) {
+      var vol = parseFloat(r.vol);
+      if (!validVol(vol)) { invalidCount += 1; return; }
+      totalSampleWS += (TOTAL_VOL - vol);
+    });
+    var standardsWS = NUM_STANDARDS * STD_WS;
+    var subtotal = totalSampleWS + standardsWS;
+    var totalWithOverage = subtotal * OVERAGE;
+    var reagent = totalWithOverage / DILUTION_PARTS;
+    var buffer = totalWithOverage - reagent;
+    return {
+      subtotal: subtotal, total: totalWithOverage, reagent: reagent, buffer: buffer,
+      invalidCount: invalidCount, sampleCount: rows.length
+    };
+  }
+
+  function recomputeMasterMix() {
+    var m = getMasterMixValues();
+
+    document.getElementById('rcSampleTubes').textContent = rows.length + ' × varies';
+    document.getElementById('rcSubtotal').textContent = m.subtotal.toFixed(1) + ' µL';
+    document.getElementById('rcOverage').textContent = (m.total - m.subtotal).toFixed(1) + ' µL';
+    document.getElementById('rcTotal').textContent = m.total.toFixed(1) + ' µL';
+    document.getElementById('rcReagent').textContent = m.reagent.toFixed(1) + ' µL';
+    document.getElementById('rcBuffer').textContent = m.buffer.toFixed(1) + ' µL';
+
+    var warningEl = document.getElementById('rcWarning');
+    if (m.invalidCount > 0) {
+      warningEl.hidden = false;
+      warningEl.textContent = m.invalidCount + ' sample' + (m.invalidCount > 1 ? 's have' : ' has') + ' an invalid volume (must be > 0 and < 200 µL) and ' + (m.invalidCount > 1 ? 'are' : 'is') + ' excluded from this recipe.';
+    } else {
+      warningEl.hidden = true;
+    }
+  }
+
+  function csvEscape(value) {
+    var s = String(value);
+    if (/[",\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  function buildCsv() {
+    var header = ['Sample name', 'Sample volume (uL)', 'Working solution added (uL)', 'Qubit reading', 'Reading units', 'Original sample concentration (ng/uL)'];
+    var lines = [header.join(',')];
+    var units = globalUnits();
+    standards.concat(rows).forEach(function (row) {
+      var vol = parseFloat(row.vol);
+      var ws = validVol(vol) ? (TOTAL_VOL - vol).toFixed(1) : '';
+      var conc = row.isStandard ? null : calcConcentration(row);
+      lines.push([
+        csvEscape(row.name),
+        csvEscape(isFinite(vol) ? vol : ''),
+        csvEscape(ws),
+        csvEscape(row.reading),
+        csvEscape(units),
+        csvEscape(row.isStandard ? 'n/a' : (conc === null ? '' : conc.toFixed(1)))
+      ].join(','));
+    });
+    return lines.join('\n');
+  }
+
+  async function downloadCsv() {
+    var csv = buildCsv();
+
+    if (!inClaudeViewer()) {
+      // Opened as a plain file/page outside the Claude artifact viewer: a normal browser download works directly.
+      if (nativeDownload('qubit-results.csv', csv, 'text/csv')) {
+        showToast('CSV downloaded.');
+        return;
+      }
+    } else {
+      var dl = null;
+      try { dl = await claude.use('downloads'); } catch (e) { dl = null; }
+      if (dl) {
+        try {
+          await dl.save({ filename: 'qubit-results.csv', data: csv });
+          showToast('CSV saved.');
+          return;
+        } catch (err) {
+          if (err && err.code === 'declined') return;
+          // fall through to clipboard on any other failure
+        }
+      }
+    }
+    var copied = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(csv);
+        copied = true;
+      }
+    } catch (e) { copied = false; }
+    if (copied) {
+      showToast('Downloads aren’t available here — copied the CSV instead. Paste it into a spreadsheet and save as .csv.');
+    } else {
+      showToast('Could not download or copy the CSV in this view.');
+    }
+  }
+
+  function buildExportTable() {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed; left:-9999px; top:0; background:#ffffff; padding:24px; width:760px; font-family:Arial,Helvetica,sans-serif; color:#111111;';
+
+    var title = document.createElement('div');
+    title.style.cssText = 'font-size:17px; font-weight:700; margin-bottom:2px;';
+    title.textContent = 'Qubit Assay Results';
+    wrap.appendChild(title);
+
+    var sub = document.createElement('div');
+    sub.style.cssText = 'font-size:12px; color:#555555; margin-bottom:14px;';
+    var units = globalUnits();
+    sub.textContent = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) + '  ·  Readout units: ' + (units || 'not set');
+    wrap.appendChild(sub);
+
+    var table = document.createElement('table');
+    table.style.cssText = 'border-collapse:collapse; width:100%; font-size:13px;';
+    var thead = document.createElement('thead');
+    var htr = document.createElement('tr');
+    ['Sample', 'Sample vol (µL)', 'Working soln (µL)', 'Qubit reading', 'Original conc. (ng/µL)'].forEach(function (h) {
+      var th = document.createElement('th');
+      th.textContent = h;
+      th.style.cssText = 'text-align:left; padding:7px 10px; border-bottom:2px solid #111111; font-weight:700;';
+      htr.appendChild(th);
+    });
+    thead.appendChild(htr);
+    table.appendChild(thead);
+
+    var tb = document.createElement('tbody');
+    standards.concat(rows).forEach(function (row) {
+      var vol = parseFloat(row.vol);
+      var ws = validVol(vol) ? (TOTAL_VOL - vol).toFixed(1) : '—';
+      var conc = row.isStandard ? 'n/a' : (function () { var c = calcConcentration(row); return c === null ? '—' : c.toFixed(1); })();
+      var tr = document.createElement('tr');
+      [row.name, isFinite(vol) ? vol.toFixed(1) : '—', ws, (row.reading === '' ? '—' : row.reading), conc].forEach(function (val, i) {
+        var td = document.createElement('td');
+        td.textContent = val;
+        td.style.cssText = 'padding:7px 10px; border-bottom:1px solid #cccccc;' + (i === 0 ? ' font-weight:500;' : '');
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    table.appendChild(tb);
+    wrap.appendChild(table);
+    document.body.appendChild(wrap);
+    return wrap;
+  }
+
+  async function exportPng() {
+    if (typeof html2canvas === 'undefined') { showToast('Image export failed to load.'); return; }
+    var exportEl = buildExportTable();
+    var canvas;
+    try {
+      canvas = await html2canvas(exportEl, { backgroundColor: '#ffffff', scale: 2 });
+    } catch (e) {
+      exportEl.remove();
+      showToast('Could not render the table image.');
+      return;
+    }
+    exportEl.remove();
+    canvas.toBlob(async function (blob) {
+      if (!blob) { showToast('Could not create the image.'); return; }
+      var copied = false;
+      try {
+        if (navigator.clipboard && window.ClipboardItem) {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          copied = true;
+        }
+      } catch (e) { copied = false; }
+      if (copied) {
+        showToast('Table image copied — paste it into your notebook.');
+        return;
+      }
+      if (!inClaudeViewer()) {
+        if (nativeDownload('qubit-results.png', blob)) {
+          showToast('Image downloaded.');
+        } else {
+          showToast('Could not copy or download the image in this view.');
+        }
+        return;
+      }
+      var dl = null;
+      try { dl = await claude.use('downloads'); } catch (e) { dl = null; }
+      if (!dl) { showToast('Could not copy or save the image in this view.'); return; }
+      try {
+        await dl.save({ filename: 'qubit-results.png', data: blob });
+        showToast('Image saved — insert it into your notebook.');
+      } catch (err) {
+        if (err && err.code === 'declined') return;
+        showToast('Could not save image: ' + (err && err.message ? err.message : 'unknown error'));
+      }
+    }, 'image/png');
+  }
+
+  function sampleWorksheetTable() {
+    var html = '<div class="protocol-table-wrap"><table class="protocol-table"><thead><tr>' +
+      '<th>Sample</th><th>Sample vol (µL)</th><th>Working soln (µL)</th><th>Result</th>' +
+      '</tr></thead><tbody>';
+    rows.forEach(function (row) {
+      var vol = parseFloat(row.vol);
+      var ws = validVol(vol) ? (TOTAL_VOL - vol).toFixed(1) : '—';
+      html += '<tr><td>' + escapeHtml(row.name || 'Sample') + '</td><td>' + (isFinite(vol) ? vol.toFixed(1) : '—') + '</td><td>' + ws + '</td><td class="blank-cell">&nbsp;</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    return html;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function protocolSteps() {
+    var m = getMasterMixValues();
+    var n = m.sampleCount;
+    var plural = n === 1 ? '' : 's';
+    return [
+      {
+        label: 'Prepare working solution',
+        html: 'Combine <span class="protocol-highlight">' + m.reagent.toFixed(1) + ' µL</span> Qubit reagent with <span class="protocol-highlight">' + m.buffer.toFixed(1) + ' µL</span> Qubit buffer (1:200 dilution) to make ' + m.total.toFixed(1) + ' µL working solution. Includes 5% extra for pipetting error, enough for ' + n + ' sample' + plural + ' plus 2 standards. Vortex to mix.'
+      },
+      {
+        label: 'Prepare standards',
+        html: 'Add 190 µL working solution to each of 2 tubes. Add 10 µL Standard 1 to the first tube and 10 µL Standard 2 to the second. Vortex 2–3 seconds, avoiding bubbles.'
+      },
+      {
+        label: 'Prepare samples',
+        html: 'For each sample below, add the sample volume to the working solution volume shown (200 µL total per tube). Vortex 2–3 seconds, avoiding bubbles. Use the Result column to record readings by hand as you go.' + sampleWorksheetTable()
+      },
+      {
+        label: 'Incubate',
+        html: 'Incubate all tubes — standards and samples — for 2 minutes at room temperature, out of direct light. Readings stay stable for up to 3 hours after incubation.'
+      },
+      {
+        label: 'Read standards',
+        html: 'On the Qubit, follow the prompt to read the standards (often labeled "Read Standards" or "Check Standards," depending on your instrument). Insert Standard 1, then Standard 2 when prompted, and record each raw fluorescence value:' +
+          '<p class="protocol-blanks">Standard 1: <span class="fill">&nbsp;</span> &nbsp;&nbsp; Standard 2: <span class="fill">&nbsp;</span></p>'
+      },
+      {
+        label: 'Read samples',
+        html: 'Insert each sample tube and record its reading in the table in Step 3 above.'
+      },
+      {
+        label: 'Record the run',
+        html: 'Record the number of samples run and the standards’ raw values in the Reagent Tracker on the dedicated lab computer.',
+        final: true
+      }
+    ];
+  }
+
+  function renderProtocol() {
+    var steps = protocolSteps();
+    var html = '<p class="protocol-meta">' + new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) + '</p><ol class="protocol-list">';
+    steps.forEach(function (s) {
+      html += '<li' + (s.final ? ' class="protocol-final"' : '') + '><strong>' + s.label + '.</strong> ' + s.html + '</li>';
+    });
+    html += '</ol>';
+    protocolBody.innerHTML = html;
+  }
+
+  function openProtocol() { renderProtocol(); protocolOverlay.hidden = false; }
+  function closeProtocol() { protocolOverlay.hidden = true; }
+
+  function refreshUnitsIndicator() {
+    globalUnitsSelect.classList.toggle('unset', globalUnitsSelect.value === '');
+  }
+
+  buildBtn.addEventListener('click', buildTable);
+  addRowBtn.addEventListener('click', function () {
+    var v = parseFloat(sampleVolInput.value);
+    if (!validVol(v)) v = 2;
+    rows.push(makeRow('Sample ' + (rows.length + 1), v));
+    renderTable();
+    recomputeMasterMix();
+  });
+  csvBtn.addEventListener('click', downloadCsv);
+  pngBtn.addEventListener('click', exportPng);
+  globalUnitsSelect.addEventListener('change', function () {
+    refreshUnitsIndicator();
+    recalcAllConcentrations();
+  });
+  protocolBtn.addEventListener('click', openProtocol);
+  closeProtocolBtn.addEventListener('click', closeProtocol);
+  closeProtocolBtn2.addEventListener('click', closeProtocol);
+  protocolOverlay.addEventListener('click', function (e) { if (e.target === protocolOverlay) closeProtocol(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !protocolOverlay.hidden) closeProtocol();
+  });
+
+  refreshUnitsIndicator();
+  buildTable();
+})();
+</script>
+</body>
+</html>
